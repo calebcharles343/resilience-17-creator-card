@@ -1,9 +1,9 @@
-GetPublicCreatorCardRequest {
+GetCreatorCardRequest {
   path /creator-cards/:slug
   method GET
 
   params {
-    slug string<trim|minLength:1|maxLength:50>
+    slug string<trim|minLength:5|maxLength:50|lowercase> // must be 5-50 characters
   }
 
   query {

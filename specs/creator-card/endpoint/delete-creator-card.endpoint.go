@@ -3,12 +3,16 @@ DeleteCreatorCardRequest {
   method DELETE
 
   params {
-    slug string<trim|minLength:1|maxLength:50>
+    slug string<trim|minLength:5|maxLength:50|lowercase> // must be 5-50 characters
   }
 
   body {
     creator_reference string<trim|length:20> // must match the creator_reference on the card
   }
+
+  // Access rules applied in this order:
+  // 1. No card with slug OR card exists but creator_reference doesn't match → HTTP 404, NF01
+  // 2. Otherwise → HTTP 200 with deleted card data
 
   response.ok {
     http.code 200

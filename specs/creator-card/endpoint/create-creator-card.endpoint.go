@@ -9,19 +9,19 @@ CreateCreatorCardRequest {
     creator_reference string<trim|length:20>
     links[]? {
       title string<trim|minLength:1|maxLength:100>
-      url string<trim|minLength:1|maxLength:200> // must start with http:// or https://
+      url string<trim|minLength:1|maxLength:200|startsWith:http://|https://> // must start with http:// or https://
     }
     service_rates? {
-      currency string(NGN|USD|GBP|GHS)
+      currency string(NGN|USD|GBP|GHS) // automatically uppercased
       rates[] { // non-empty if service_rates is present
         name string<trim|minLength:3|maxLength:100>
         description? string<trim|maxLength:250>
-        amount number<min:1> // positive integer only; no zero, no decimals
+        amount integer<min:1> // positive integer only; no zero, no decimals
       }
     }
     status string(published|draft)
     access_type? string(public|private) // defaults to public when omitted
-    access_code? string<length:6> // exactly 6 alphanumeric characters; required if access_type is private; must NOT be set if access_type is public
+    access_code? string<trim|length:6|alphanumeric> // exactly 6 alphanumeric characters; required if access_type is private; must NOT be set if access_type is public
   }
 
   response.ok {
