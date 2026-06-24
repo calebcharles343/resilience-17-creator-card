@@ -1,59 +1,63 @@
 const validator = require('@app-core/validator');
 const { throwAppError, ERROR_CODE } = require('@app-core/errors');
+const { appLogger } = require('@app-core/logger');
 const CreatorCard = require('@app/repository/creator-card');
 const { CreatorCardMessages } = require('@app/messages');
 
+function transformDocument(doc) {
+  // eslint-disable-next-line camelcase
+  const { _id, __v, access_code, ...rest } = doc;
+  return { id: _id, ...rest };
+}
+
 const spec = `root {
-  slug string<trim|minLength:1|maxLength:50>
-  access_code? string
+  slug string<trim|lowercase|lengthBetween:5,50>
+  access_code? string<trim|length:6>
 }`;
 
 const parsedSpec = validator.parse(spec);
 
-async function getPublicCreatorCard(serviceData, options = {}) {
+async function getCreatorCard(serviceData, options = {}) {
   const data = validator.validate(serviceData, parsedSpec);
-  const { slug } = data;
-  const accessCode = data.access_code ? data.access_code.trim() : null;
+  let result;
 
-  const card = await CreatorCard.findOne({
-    query: { slug },
-    options: { session: options.session },
-  });
+  try {
+    const { slug, access_code: accessCode } = data;
 
-  // 1. Order of Checks: Check existence first (NF01)
-  if (!card) {
-    throwAppError(CreatorCardMessages.CARD_NOT_FOUND, ERROR_CODE.NF01);
-  }
+    const card = await CreatorCard.findOne({
+      query: { slug },
+      options: { session: options.session },
+    });
 
-  // 2. Draft evaluation (NF02)
-  if (card.status === 'draft') {
-    throwAppError(CreatorCardMessages.CARD_IS_DRAFT, ERROR_CODE.NF02);
-  }
-
-  // 3. Access Code Access Boundary (AC03 & AC04)
-  if (card.access_type === 'private') {
-    if (!accessCode) {
-      throwAppError(CreatorCardMessages.PRIVATE_CARD_ACCESS_DENIED, ERROR_CODE.AC03);
+    // Order matters: Check existence first
+    if (!card) {
+      throwAppError(CreatorCardMessages.CARD_NOT_FOUND, ERROR_CODE.NF01);
     }
-    if (card.access_code !== accessCode) {
-      throwAppError(CreatorCardMessages.INVALID_ACCESS_CODE, ERROR_CODE.AC04);
+
+    // Draft check (distinct code NF02)
+    if (card.status === 'draft') {
+      throwAppError(CreatorCardMessages.CARD_IS_DRAFT, ERROR_CODE.NF02);
     }
+
+    // Private card access checks
+    if (card.access_type === 'private') {
+      if (!accessCode) {
+        throwAppError(CreatorCardMessages.PRIVATE_CARD_ACCESS_DENIED, ERROR_CODE.AC03);
+      }
+
+      if (accessCode !== card.access_code) {
+        throwAppError(CreatorCardMessages.INVALID_ACCESS_CODE, ERROR_CODE.AC04);
+      }
+    }
+
+    // Transform document (automatically removes access_code)
+    result = transformDocument(card);
+  } catch (error) {
+    appLogger.errorX(error, 'get-public-creator-card-error');
+    throw error;
   }
 
-  return {
-    id: card._id,
-    title: card.title,
-    description: card.description || null,
-    slug: card.slug,
-    creator_reference: card.creator_reference,
-    links: card.links,
-    service_rates: card.service_rates || null,
-    status: card.status,
-    access_type: card.access_type,
-    created: card.created,
-    updated: card.updated,
-    deleted: null,
-  };
+  return result;
 }
 
-module.exports = getPublicCreatorCard;
+module.exports = getCreatorCard;
