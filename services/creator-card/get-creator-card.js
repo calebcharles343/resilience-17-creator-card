@@ -12,7 +12,7 @@ function transformDocument(doc) {
 
 const spec = `root {
   slug string<trim|lowercase|lengthBetween:5,50>
-  access_code? string<trim|length:6>
+  access_code? string<trim>
 }`;
 
 const parsedSpec = validator.parse(spec);

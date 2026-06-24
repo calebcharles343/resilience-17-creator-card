@@ -248,9 +248,13 @@ function Server(serverConfig = {}) {
           : 'Some error occured.';
         responseComponents.body.errors = error.details || undefined;
         responseComponents.body.data = error.context;
-        // IMPORTANT: Include the error code in the response
+
+        // ONLY add code for assessment-specific errors, NOT validation errors
         if (error.isApplicationError && error.errorCode) {
-          responseComponents.body.code = error.errorCode;
+          const assessmentCodes = ['SL02', 'AC01', 'AC03', 'AC04', 'AC05', 'NF01', 'NF02'];
+          if (assessmentCodes.includes(error.errorCode)) {
+            responseComponents.body.code = error.errorCode;
+          }
         }
 
         expressResponse.status(responseComponents.statusCode).json(responseComponents.body);
